@@ -7,7 +7,6 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { WebSocket } from 'ws';
-import { Buffer } from 'buffer';
 
 // Midnight SDK imports
 import { findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
@@ -18,13 +17,15 @@ import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config
 import { resolveNetwork, getOrCreateWallet, formatWalletBackupNotice, getDeployment } from './network';
 import { createWallet, persistWalletState, unshieldedToken, type WalletContext } from './wallet';
 import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-js';
+import { witnesses, type PrivateState } from './witnesses';
 
 // Enable WebSocket for GraphQL subscriptions
 // @ts-expect-error Required for wallet sync
 globalThis.WebSocket = WebSocket;
 
 // Must match the privateStateId used at deploy time so the CLI reconnects to
-// the same private state. The hello-world contract has no witnesses (empty state).
+// the same private state. The private-eligibility-verifier contract stores
+// the user's age as private state.
 const PRIVATE_STATE_ID = 'helloWorldPrivateState';
 
 const { network, config: networkConfig } = resolveNetwork();
@@ -50,7 +51,7 @@ if (!fs.existsSync(contractPath)) {
 const HelloWorld = await import(pathToFileURL(contractPath).href);
 
 const compiledContract = CompiledContract.make('hello-world', HelloWorld.Contract).pipe(
-  CompiledContract.withVacantWitnesses,
+  CompiledContract.withWitnesses(witnesses),
   CompiledContract.withCompiledFileAssets(zkConfigPath),
 );
 
@@ -161,7 +162,7 @@ async function main() {
       compiledContract: compiledContract as any,
       contractAddress: deployment.address,
       privateStateId: PRIVATE_STATE_ID,
-      initialPrivateState: {},
+      initialPrivateState: { age: 0n } as PrivateState,
     });
 
     console.log('  ✅ Connected!\n');
@@ -170,8 +171,8 @@ async function main() {
     let running = true;
     while (running) {
       console.log('─── Menu ───────────────────────────────────────────────────────');
-      console.log('  1. Store a message');
-      console.log('  2. Read current message');
+      console.log('  1. Verify eligibility (private age check)');
+      console.log('  2. Check current eligibility status');
       console.log('  3. Check wallet balance');
       console.log('  4. Exit\n');
 
@@ -179,13 +180,24 @@ async function main() {
 
       switch (choice.trim()) {
         case '1': {
-          const message = await rl.question('  Enter your message: ');
+          const ageInput = await rl.question('  Enter your age: ');
+          const age = BigInt(parseInt(ageInput, 10));
+          if (isNaN(Number(age)) || age < 0n || age > 255n) {
+            console.log('\n  ❌ Invalid age. Please enter a number between 0 and 255.\n');
+            break;
+          }
           console.log('\n  Submitting transaction (this may take 30-60 seconds)...');
           try {
-            const tx = await deployed.callTx.storeMessage(message);
-            console.log(`\n  ✅ Message stored: "${message}"`);
+            // Update private state with the user's age
+            const currentPrivateState = deployed.privateState;
+            currentPrivateState.age = age;
+            
+            const tx = await deployed.callTx.verifyEligibility();
+            console.log(`\n  ✅ Age verified privately`);
             console.log(`  Transaction ID: ${tx.public.txId}`);
-            console.log(`  Block height: ${tx.public.blockHeight}\n`);
+            console.log(`  Block height: ${tx.public.blockHeight}`);
+            console.log(`  Your age (${age}) was used as a private witness.`);
+            console.log(`  Only the eligibility result (age >= 18) is stored on-chain.\n`);
           } catch (error) {
             console.error('\n  ❌ Failed:', error instanceof Error ? error.message : error);
           }
@@ -193,15 +205,15 @@ async function main() {
         }
 
         case '2': {
-          console.log('\n  Reading message from blockchain...');
+          console.log('\n  Checking eligibility status from blockchain...');
           try {
             const contractState = await providers.publicDataProvider.queryContractState(deployment.address);
             if (contractState) {
               const ledgerState = HelloWorld.ledger(contractState.data);
-              const message = Buffer.from(ledgerState.message).toString();
-              console.log(`\n  📋 Current message: "${message}"\n`);
+              const eligible = ledgerState.eligible;
+              console.log(`\n  📋 Eligibility status: ${eligible ? '✅ ELIGIBLE (age >= 18)' : '❌ NOT ELIGIBLE (age < 18)'}\n`);
             } else {
-              console.log('\n  📋 No message found (contract state empty)\n');
+              console.log('\n  📋 No eligibility check performed yet (contract state empty)\n');
             }
           } catch (error) {
             console.error('\n  ❌ Failed:', error instanceof Error ? error.message : error);

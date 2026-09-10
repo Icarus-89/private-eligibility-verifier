@@ -19,12 +19,13 @@ import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-p
 import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
 import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config-provider';
 import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-js';
+import { witnesses, type PrivateState } from './witnesses';
 
 // @ts-expect-error Required for wallet sync
 globalThis.WebSocket = WebSocket;
 
 // Identifier under which this contract's private state is stored. The
-// hello-world contract has no witnesses, so its private state is empty ({}).
+// private-eligibility-verifier contract stores the user's age as private state.
 const PRIVATE_STATE_ID = 'helloWorldPrivateState';
 
 // Upper bound on the DUST wait. A healthy local devnet produces DUST within
@@ -88,7 +89,7 @@ if (!fs.existsSync(contractPath)) {
 const HelloWorld = await import(pathToFileURL(contractPath).href);
 
 const compiledContract = CompiledContract.make('hello-world', HelloWorld.Contract).pipe(
-  CompiledContract.withVacantWitnesses,
+  CompiledContract.withWitnesses(witnesses),
   CompiledContract.withCompiledFileAssets(zkConfigPath),
 );
 
@@ -151,7 +152,6 @@ async function main() {
   if (restoredCount > 0) {
     console.log(`  Restored ${restoredCount}/3 child wallets from .midnight-wallet-state — sync will resume from saved point.`);
   }
-
   console.log('  Syncing with network...');
   console.log('  ℹ  This may take several minutes depending on network size.');
   console.log('     RPC disconnection messages during sync are normal and can be safely ignored.\n');
@@ -314,16 +314,13 @@ async function main() {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       // Midnight.js 4.1.x supplies private state via privateStateId +
-      // initialPrivateState (empty here — the hello-world contract has no
-      // witnesses). args is the contract constructor's arguments: empty for
-      // hello-world's no-arg constructor. (Statically-typed contracts can omit
-      // args entirely; this script loads the contract dynamically, so the
-      // conditional args type widens to any[] and an explicit [] is required.)
+      // initialPrivateState (age = 0n as initial value). args is the contract
+      // constructor's arguments: empty for this contract's no-arg constructor.
       deployed = await deployContract(providers, {
         compiledContract: compiledContract as any,
         args: [],
         privateStateId: PRIVATE_STATE_ID,
-        initialPrivateState: {},
+        initialPrivateState: { age: 0n } as PrivateState,
       });
       break;
     } catch (err: any) {
