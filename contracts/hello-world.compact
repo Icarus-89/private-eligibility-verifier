@@ -2,11 +2,19 @@ pragma language_version >= 0.23;
 
 import CompactStandardLibrary;
 
-// Public ledger state - visible on blockchain
-export ledger message: Opaque<"string">;
+// Public result stored on the blockchain.
+// Only the eligibility result is exposed.
+export ledger eligible: Boolean;
 
-// Circuit to store a message on the blockchain
-// The message will be publicly visible
-export circuit storeMessage(customMessage: Opaque<"string">): [] {
-    message = disclose(customMessage);
+// Private input supplied by the user.
+// It is used as a witness and is NOT stored on the public ledger.
+witness userAge(): Uint<8>;
+
+// Verify whether the private age satisfies the eligibility requirement.
+export circuit verifyEligibility(): [] {
+    const age = userAge();
+
+    // Only disclose the final Boolean result.
+    eligible = disclose(age >= 18);
 }
+
