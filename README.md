@@ -2,7 +2,7 @@
 
 ## Product Idea
 
-Private Eligibility Verifier is a privacy-preserving dApp built on the Midnight Network that solves a critical real-world problem: proving eligibility without exposing personal data. Consider age verification for purchasing restricted items, accessing age-gated content, or entering licensed venues. Today, users must surrender sensitive documents (driver's licenses, passportFullName: string; dateOfBirth: DateOfBirth; documentNumber: string;
+Private Eligibility Verifier is a privacy-preserving dApp built on the Midnight Network that solves a critical real-world problem: proving eligibility without exposing personal data. Consider age verification for purchasing restricted items, accessing age-gated content, or entering licensed venues. Today, users must surrender sensitive documents (driver's licenses, passports) containing their full name, address, dateOfBirth, and photo
 
 This dApp flips the model. Users provide their age as a private witness input, and the smart contract cryptographically proves whether they meet the required threshold (e.g., 18+). The blockchain only sees a Boolean result—	rue or alse—with zero knowledge of the actual age. A 25-year-old and a 40-year-old produce identical on-chain proofs. No personal documents are stored, no third parties hold sensitive data, and the verification is trustless and auditable.
 
@@ -33,7 +33,7 @@ Private witness is data supplied by the user during transaction execution but ne
 witness userAge(): Uint<8>;
 `
 
-The user's actual age is provided as a private witness. The zero-knowledge circuit processes this value locally, computes the comparison (ge >= 18), and outputs only the Boolean result. The age itself:
+The user's actual age is provided as a private witness. The zero-knowledge circuit processes this value locally, computes the comparison (age >= 18), and outputs only the Boolean result. The age itself:
 
 - Is never transmitted to the blockchain
 - Is never visible to miners, validators, or other participants
@@ -43,7 +43,7 @@ The user's actual age is provided as a private witness. The zero-knowledge circu
 ### How It Works
 
 1. **User provides private input**: The user calls userAge() which returns their age (e.g., 25)
-2. **Circuit computes locally**: The ZK circuit evaluates ge >= 18 ? 	rue
+2. **Circuit computes locally**: The ZK circuit evaluates age >= 18 ? 	rue
 3. **Public output published**: Only eligible = true is written to the blockchain
 4. **Privacy preserved**: No observer can determine whether the user is 18, 25, 40, or 65
 
