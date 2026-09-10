@@ -1,7 +1,60 @@
 # private-eligibility-verifier
 
+## Product Idea
+
+Private Eligibility Verifier is a privacy-preserving dApp built on the Midnight Network that solves a critical real-world problem: proving eligibility without exposing personal data. Consider age verification for purchasing restricted items, accessing age-gated content, or entering licensed venues. Today, users must surrender sensitive documents (driver's licenses, passportFullName: string; dateOfBirth: DateOfBirth; documentNumber: string;
+
+This dApp flips the model. Users provide their age as a private witness input, and the smart contract cryptographically proves whether they meet the required threshold (e.g., 18+). The blockchain only sees a Boolean result—	rue or alse—with zero knowledge of the actual age. A 25-year-old and a 40-year-old produce identical on-chain proofs. No personal documents are stored, no third parties hold sensitive data, and the verification is trustless and auditable.
+
+This approach extends beyond age verification to any eligibility scenario: professional certifications, residency requirements, income thresholds, or membership status—anywhere a yes/no answer suffices but the underlying data must remain private.
+
 A Midnight Network smart contract that enables private age verification for eligibility checks. Users can prove they meet age requirements (e.g., 18+) without revealing their actual age to the blockchain or third parties. The contract takes a private age as a witness input, evaluates whether it meets the threshold, and publishes only the Boolean eligibility result on-chain. This demonstrates Midnight's zero-knowledge privacy model: sensitive personal data stays private while verifiable proofs are publicly auditable.
 
+
+## Public State vs Private Witness
+
+Midnight Network introduces a fundamental distinction between **public state** and **private witness** data, enabling privacy-preserving smart contracts.
+
+### Public State (Ledger State)
+
+Public state is data stored on the blockchain that anyone can read and verify. In this contract, the public state is:
+
+`
+export ledger eligible: Boolean;
+`
+
+This single Boolean value is the only information that becomes part of the immutable blockchain record. All observers—including block explorers, indexers, and other contracts—can see whether eligibility was proven, but nothing else.
+
+### Private Witness (User Input)
+
+Private witness is data supplied by the user during transaction execution but never stored on-chain. In this contract:
+
+`
+witness userAge(): Uint<8>;
+`
+
+The user's actual age is provided as a private witness. The zero-knowledge circuit processes this value locally, computes the comparison (ge >= 18), and outputs only the Boolean result. The age itself:
+
+- Is never transmitted to the blockchain
+- Is never visible to miners, validators, or other participants
+- Cannot be extracted from the proof after submission
+- Exists only within the user's secure execution environment
+
+### How It Works
+
+1. **User provides private input**: The user calls userAge() which returns their age (e.g., 25)
+2. **Circuit computes locally**: The ZK circuit evaluates ge >= 18 ? 	rue
+3. **Public output published**: Only eligible = true is written to the blockchain
+4. **Privacy preserved**: No observer can determine whether the user is 18, 25, 40, or 65
+
+### Real-World Impact
+
+This model solves the "minimum disclosure" problem. Traditional systems require sharing an entire document (driver's license with photo, address, exact birthdate) to prove a single fact (over 18). Midnight's approach proves exactly one fact and nothing more.
+
+For developers, this means:
+
+- **Public state** = what you want the world to know (eligibility result)
+- **Private witness** = what you need to prove but keep secret (age, income, credentials)
 ## Quick start
 
 Requirements: Node 22, Docker (with Compose v2), and the Compact compiler at the version pinned in `.compact-version` at the create-mn-app repo root (the version this project was scaffolded against).
