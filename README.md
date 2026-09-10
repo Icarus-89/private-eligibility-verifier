@@ -1,6 +1,6 @@
 # private-eligibility-verifier
 
-A Midnight Network smart contract scaffolded with create-mn-app.
+A Midnight Network smart contract that enables private age verification for eligibility checks. Users can prove they meet age requirements (e.g., 18+) without revealing their actual age to the blockchain or third parties. The contract takes a private age as a witness input, evaluates whether it meets the threshold, and publishes only the Boolean eligibility result on-chain. This demonstrates Midnight's zero-knowledge privacy model: sensitive personal data stays private while verifiable proofs are publicly auditable.
 
 ## Quick start
 
